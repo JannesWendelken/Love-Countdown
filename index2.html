@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Countdown</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --accent: #00f0ff;
+    --bg: #07090c;
+    --fg: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Inter, system-ui, sans-serif;
+    background: radial-gradient(circle at top, rgba(0,240,255,0.08), transparent 40%), var(--bg);
+    color: var(--fg);
+    overflow: hidden;
+}
+
+.watermark {
+    position: fixed;
+    top: 16px;
+    left: 20px;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    opacity: 0.5;
+}
+
+.controls {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    display: flex;
+    gap: 12px;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+}
+
+.controls span {
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.wrapper {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.countdown {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    gap: 32px;
+}
+
+.card {
+    position: relative;
+    padding: 36px 24px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    box-shadow:
+        0 30px 80px rgba(0,0,0,0.25),
+        inset 0 0 0 1.5px rgba(255,255,255,0.3);
+    overflow: hidden;
+}
+
+.card::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(120deg, transparent, var(--accent), transparent);
+    opacity: 0.25;
+    animation: sweep 4s linear infinite;
+}
+
+@keyframes sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+}
+
+.card.tick {
+    box-shadow: 0 0 50px var(--accent);
+}
+
+.value {
+    font-size: clamp(3rem, 6vw, 4.5rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+}
+
+.label {
+    margin-top: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    opacity: 0.7;
+}
+
+.footer {
+    position: fixed;
+    bottom: 28px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    opacity: 0.45;
+}
+
+.progress {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(255,255,255,0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 14px var(--accent);
+}
+
+.admin {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.admin-box {
+    background: #0c0f14;
+    padding: 28px;
+    border-radius: 18px;
+    width: 320px;
+}
+
+.admin-box h2 {
+    margin-top: 0;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+}
+
+.admin-box label {
+    display: block;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    margin-top: 16px;
+    opacity: 0.7;
+}
+
+.admin-box input {
+    width: 100%;
+    margin-top: 6px;
+}
+
+.admin-box button {
+    margin-top: 20px;
+    width: 100%;
+}
+
+@media (max-width: 720px) {
+    .countdown { grid-template-columns: repeat(2,1fr); gap: 20px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="watermark">made with ❤️ by Jannes</div>
+
+<div class="controls">
+    <input type="color" id="colorPicker">
+    <span onclick="openAdmin()">admin</span>
+</div>
+
+<div class="wrapper">
+    <div class="countdown">
+        <div class="card" id="d"><div class="value">0</div><div class="label">Days</div></div>
+        <div class="card" id="h"><div class="value">0</div><div class="label">Hours</div></div>
+        <div class="card" id="m"><div class="value">0</div><div class="label">Minutes</div></div>
+        <div class="card" id="s"><div class="value">0</div><div class="label">Seconds</div></div>
+    </div>
+</div>
+
+<div class="footer" id="footer"></div>
+<div class="progress"><div class="progress-bar" id="progress"></div></div>
+
+<div class="admin" id="admin">
+    <div class="admin-box">
+        <h2>ADMIN</h2>
+        <label>Target date & time</label>
+        <input type="datetime-local" id="adminDate">
+        <label>Footer label</label>
+        <input type="text" id="adminLabel">
+        <button onclick="saveAdmin()">Save</button>
+        <button onclick="closeAdmin()">Close</button>
+    </div>
+</div>
+
+<script>
+const els = {
+    d: document.querySelector("#d .value"),
+    h: document.querySelector("#h .value"),
+    m: document.querySelector("#m .value"),
+    s: document.querySelector("#s .value")
+}
+
+const cards = {
+    d: document.getElementById("d"),
+    h: document.getElementById("h"),
+    m: document.getElementById("m"),
+    s: document.getElementById("s")
+}
+
+let target = localStorage.target
+    ? Number(localStorage.target)
+    : new Date("2026-01-06T13:00").getTime()
+
+let start = localStorage.start
+    ? Number(localStorage.start)
+    : Date.now()
+
+const footer = document.getElementById("footer")
+footer.textContent = localStorage.label || "Vienna · 6 Jan 2026 · 13:00"
+
+const colorPicker = document.getElementById("colorPicker")
+colorPicker.value = localStorage.accent || "#00f0ff"
+document.documentElement.style.setProperty("--accent", colorPicker.value)
+
+colorPicker.oninput = e => {
+    document.documentElement.style.setProperty("--accent", e.target.value)
+    localStorage.accent = e.target.value
+}
+
+function tick(el) {
+    el.classList.remove("tick")
+    void el.offsetWidth
+    el.classList.add("tick")
+}
+
+function update() {
+    const now = Date.now()
+    let diff = target - now
+    if (diff < 0) diff = 0
+
+    const d = Math.floor(diff / 86400000)
+    const h = Math.floor(diff % 86400000 / 3600000)
+    const m = Math.floor(diff % 3600000 / 60000)
+    const s = Math.floor(diff % 60000 / 1000)
+
+    if (els.d.textContent != d) { els.d.textContent = d; tick(cards.d) }
+    if (els.h.textContent != h) { els.h.textContent = h; tick(cards.h) }
+    if (els.m.textContent != m) { els.m.textContent = m; tick(cards.m) }
+    if (els.s.textContent != s) { els.s.textContent = s; tick(cards.s) }
+
+    const total = Math.max(target - start, 1)
+    const progress = ((total - diff) / total) * 100
+    document.getElementById("progress").style.width =
+        Math.min(Math.max(progress, 0), 100) + "%"
+}
+
+function openAdmin() {
+    document.getElementById("admin").style.display = "flex"
+    document.getElementById("adminDate").value =
+        new Date(target).toISOString().slice(0,16)
+    document.getElementById("adminLabel").value = footer.textContent
+}
+
+function closeAdmin() {
+    document.getElementById("admin").style.display = "none"
+}
+
+function saveAdmin() {
+    const d = document.getElementById("adminDate").value
+    if (!d) return
+
+    const ts = new Date(d).getTime()
+    if (isNaN(ts)) return
+
+    target = ts
+    start = Date.now()
+
+    localStorage.target = target
+    localStorage.start = start
+    localStorage.label = document.getElementById("adminLabel").value
+
+    footer.textContent = localStorage.label
+    closeAdmin()
+}
+
+update()
+setInterval(update, 1000)
+</script>
+
+</body>
+</html>
